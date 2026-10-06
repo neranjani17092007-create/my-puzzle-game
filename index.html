@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid Maze Puzzle</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #0d1117;
+            color: #ffffff;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .game-container {
+            width: 95%;
+            max-width: 650px;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 32px;
+            color: #ffffff;
+        }
+
+        .subtitle {
+            margin-bottom: 20px;
+            color: #8b949e;
+            font-size: 15px;
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 12px 18px;
+            margin-bottom: 15px;
+        }
+
+        .info-item {
+            font-size: 15px;
+            color: #c9d1d9;
+        }
+
+        .info-item span {
+            color: #58a6ff;
+            font-weight: bold;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            margin: 0 auto;
+            background: #11161d;
+            border: 2px solid #30363d;
+            border-radius: 10px;
+        }
+
+        .controls {
+            margin-top: 15px;
+            color: #8b949e;
+            font-size: 14px;
+        }
+
+        .buttons {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        button {
+            border: none;
+            border-radius: 7px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            background: #21262d;
+            color: #ffffff;
+            border: 1px solid #30363d;
+            transition: 0.2s;
+        }
+
+        button:hover {
+            background: #30363d;
+        }
+
+        #restartButton {
+            background: #238636;
+            border-color: #2ea043;
+        }
+
+        #restartButton:hover {
+            background: #2ea043;
+        }
+
+        #message {
+            min-height: 25px;
+            margin-top: 15px;
+            color: #58a6ff;
+            font-weight: bold;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 26px;
+            }
+
+            .game-info {
+                font-size: 13px;
+            }
+
+            .controls {
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="game-container">
+
+    <h1>Grid Maze</h1>
+
+    <div class="subtitle">
+        Reach the green goal without crossing the blue walls.
+    </div>
+
+    <div class="game-info">
+        <div class="info-item">
+            Level: <span id="levelDisplay">1</span>
+        </div>
+
+        <div class="info-item">
+            Moves: <span id="movesDisplay">0</span>
+        </div>
+
+        <div class="info-item">
+            Status: <span id="statusDisplay">Playing</span>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas" width="600" height="600"></canvas>
+
+    <div class="controls">
+        Use <b>Arrow Keys</b> to move the red square.
+    </div>
+
+    <div class="buttons">
+        <button id="restartButton">Restart Level</button>
+        <button id="resetButton">Reset Game</button>
+    </div>
+
+    <div id="message"></div>
+
+</div>
+
+
+<script>
+
+    // ============================================================
+    // CANVAS SETUP
+    // ============================================================
+
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const levelDisplay = document.getElementById("levelDisplay");
+    const movesDisplay = document.getElementById("movesDisplay");
+    const statusDisplay = document.getElementById("statusDisplay");
+    const message = document.getElementById("message");
+
+    const restartButton = document.getElementById("restartButton");
+    const resetButton = document.getElementById("resetButton");
+
+
+    // ============================================================
+    // GAME SETTINGS
+    // ============================================================
+
+    const TILE_SIZE = 60;
+
+    let currentLevel = 0;
+    let moves = 0;
+    let gameWon = false;
+
+
+    // ============================================================
+    // LEVEL DATA
+    //
+    // 0 = empty space
+    // 1 = wall
+    // S = player start
+    // G = goal
+    // ============================================================
+
+    const levels = [
+
+        // --------------------------------------------------------
+        // LEVEL 1
+        // --------------------------------------------------------
+
+        [
+            [1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,0,0,0,0,0,1],
+            [1,0,1,1,1,0,1,1,0,1],
+            [1,0,1,0,0,0,0,1,0,1],
+            [1,0,1,0,1,1,0,1,0,1],
+            [1,0,0,0,1,0,0,1,0,1],
+            [1,0,1,0,1,0,1,1,0,1],
+            [1,0,1,0,0,0,0,0,0,1],
+            [1,0,0,0,1,1,1,1,0,1],
+            [1,1,1,1,1,1,1,1,1,1]
+        ],
+
+        // --------------------------------------------------------
+        // LEVEL 2
+        // --------------------------------------------------------
+
+        [
+            [1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,1,0,0,0,0,1],
+            [1,0,1,0,1,0,1,1,0,1],
+            [1,0,1,0,0,0,0,1,0,1],
+            [1,0,1,1,1,1,0,1,0,1],
+            [1,0,0,0,0,0,0,1,0,1],
+            [1,1,1,0,1,1,1,1,0,1],
+            [1,0,0,0,0,0,0,0,0,1],
+            [1,0,1,1,1,1,1,1,0,1],
+            [1,1,1,1,1,1,1,1,1,1]
+        ],
+
+        // --------------------------------------------------------
+        // LEVEL 3
+        // --------------------------------------------------------
+
+        [
+            [1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,0,1,0,0,0,1],
+            [1,0,1,1,0,1,0,1,0,1],
+            [1,0,0,1,0,0,0,1,0,1],
+            [1,1,0,1,1,1,0,1,0,1],
+            [1,0,0,0,0,0,0,1,0,1],
+            [1,0,1,1,1,1,1,1,0,1],
+            [1,0,0,0,0,0,0,0,0,1],
+            [1,1,1,1,1,1,1,1,0,1],
+            [1,1,1,1,1,1,1,1,1,1]
+        ]
+
+    ];
+
+
+    // ============================================================
+    // PLAYER AND GOAL
+    // ============================================================
+
+    let player = {
+        row: 1,
+        col: 1
+    };
+
+    let goal = {
+        row: 8,
+        col: 8
+    };
+
+
+    // ============================================================
+    // LEVEL INITIALIZATION
+    // ============================================================
+
+    function initializeLevel() {
+
+        moves = 0;
+        gameWon = false;
+
+        message.textContent = "";
+
+        statusDisplay.textContent = "Playing";
+
+        const level = levels[currentLevel];
+
+        // Start position
+        player = {
+            row: 1,
+            col: 1
+        };
+
+        // Goal position
+        goal = {
+            row: level.length - 2,
+            col: level[0].length - 2
+        };
+
+        updateUI();
+        drawGame();
+    }
+
+
+    // ============================================================
+    // DRAW THE GAME
+    // ============================================================
+
+    function drawGame() {
+
+        const level = levels[currentLevel];
+
+        ctx.clearRect(
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
+
+        // --------------------------------------------------------
+        // DRAW GRID
+        // --------------------------------------------------------
+
+        for (let row = 0; row < level.length; row++) {
+
+            for (let col = 0; col < level[row].length; col++) {
+
+                const x = col * TILE_SIZE;
+                const y = row * TILE_SIZE;
+
+                // Empty tile
+                ctx.fillStyle = "#11161d";
+
+                ctx.fillRect(
+                    x,
+                    y,
+                    TILE_SIZE,
+                    TILE_SIZE
+                );
+
+                // ------------------------------------------------
+                // BLUE WALL
+                // ------------------------------------------------
+
+                if (level[row][col] === 1) {
+
+                    ctx.fillStyle = "#2472c8";
+
+                    ctx.fillRect(
+                        x + 3,
+                        y + 3,
+                        TILE_SIZE - 6,
+                        TILE_SIZE - 6
+                    );
+
+                    // Small highlight
+                    ctx.fillStyle = "#3d8de0";
+
+                    ctx.fillRect(
+                        x + 7,
+                        y + 7,
+                        TILE_SIZE - 14,
+                        4
+                    );
+                }
+
+                // ------------------------------------------------
+                // GRID LINES
+                // ------------------------------------------------
+
+                ctx.strokeStyle = "#202832";
+                ctx.lineWidth = 1;
+
+                ctx.strokeRect(
+                    x,
+                    y,
+                    TILE_SIZE,
+                    TILE_SIZE
+                );
+            }
+        }
+
+
+        // ========================================================
+        // DRAW GOAL
+        // ========================================================
+
+        const goalX = goal.col * TILE_SIZE;
+        const goalY = goal.row * TILE_SIZE;
+
+        ctx.fillStyle = "#22c55e";
+
+        ctx.fillRect(
+            goalX + 8,
+            goalY + 8,
+            TILE_SIZE - 16,
+            TILE_SIZE - 16
+        );
+
+        // Goal highlight
+        ctx.fillStyle = "#4ade80";
+
+        ctx.fillRect(
+            goalX + 13,
+            goalY + 13,
+            TILE_SIZE - 26,
+            5
+        );
+
+
+        // ========================================================
+        // DRAW PLAYER
+        // ========================================================
+
+        const playerX = player.col * TILE_SIZE;
+        const playerY = player.row * TILE_SIZE;
+
+        ctx.fillStyle = "#ef4444";
+
+        ctx.fillRect(
+            playerX + 8,
+            playerY + 8,
+            TILE_SIZE - 16,
+            TILE_SIZE - 16
+        );
+
+        // Player highlight
+        ctx.fillStyle = "#f87171";
+
+        ctx.fillRect(
+            playerX + 13,
+            playerY + 13,
+            TILE_SIZE - 26,
+            5
+        );
+    }
+
+
+    // ============================================================
+    // PLAYER MOVEMENT
+    // ============================================================
+
+    function movePlayer(rowChange, colChange) {
+
+        if (gameWon) {
+            return;
+        }
+
+        const level = levels[currentLevel];
+
+        const newRow = player.row + rowChange;
+        const newCol = player.col + colChange;
+
+
+        // --------------------------------------------------------
+        // CHECK BOUNDARIES
+        // --------------------------------------------------------
+
+        if (
+            newRow < 0 ||
+            newRow >= level.length ||
+            newCol < 0 ||
+            newCol >= level[0].length
+        ) {
+            return;
+        }
+
+
+        // --------------------------------------------------------
+        // CHECK WALL
+        // --------------------------------------------------------
+
+        if (level[newRow][newCol] === 1) {
+            return;
+        }
+
+
+        // --------------------------------------------------------
+        // MOVE PLAYER
+        // --------------------------------------------------------
+
+        player.row = newRow;
+        player.col = newCol;
+
+        moves++;
+
+        updateUI();
+        drawGame();
+
+        checkGoal();
+    }
+
+
+    // ============================================================
+    // CHECK WHETHER PLAYER REACHED GOAL
+    // ============================================================
+
+    function checkGoal() {
+
+        if (
+            player.row === goal.row &&
+            player.col === goal.col
+        ) {
+
+            gameWon = true;
+
+            statusDisplay.textContent = "Complete";
+
+            message.textContent = "Level complete!";
+
+            // Small delay before next level
+            setTimeout(() => {
+
+                nextLevel();
+
+            }, 700);
+        }
+    }
+
+
+    // ============================================================
+    // NEXT LEVEL
+    // ============================================================
+
+    function nextLevel() {
+
+        if (currentLevel < levels.length - 1) {
+
+            currentLevel++;
+
+            initializeLevel();
+
+        } else {
+
+            message.textContent =
+                "You completed every level!";
+
+            statusDisplay.textContent = "Finished";
+
+            gameWon = true;
+        }
+    }
+
+
+    // ============================================================
+    // RESTART CURRENT LEVEL
+    // ============================================================
+
+    function restartLevel() {
+
+        initializeLevel();
+    }
+
+
+    // ============================================================
+    // RESET ENTIRE GAME
+    // ============================================================
+
+    function resetGame() {
+
+        currentLevel = 0;
+
+        initializeLevel();
+    }
+
+
+    // ============================================================
+    // UPDATE UI
+    // ============================================================
+
+    function updateUI() {
+
+        levelDisplay.textContent = currentLevel + 1;
+
+        movesDisplay.textContent = moves;
+    }
+
+
+    // ============================================================
+    // KEYBOARD CONTROLS
+    // ============================================================
+
+    document.addEventListener("keydown", function(event) {
+
+        const key = event.key;
+
+        // Prevent page scrolling
+        if (
+            key === "ArrowUp" ||
+            key === "ArrowDown" ||
+            key === "ArrowLeft" ||
+            key === "ArrowRight"
+        ) {
+            event.preventDefault();
+        }
+
+
+        if (key === "ArrowUp") {
+
+            movePlayer(-1, 0);
+
+        } else if (key === "ArrowDown") {
+
+            movePlayer(1, 0);
+
+        } else if (key === "ArrowLeft") {
+
+            movePlayer(0, -1);
+
+        } else if (key === "ArrowRight") {
+
+            movePlayer(0, 1);
+
+        }
+
+    });
+
+
+    // ============================================================
+    // BUTTON CONTROLS
+    // ============================================================
+
+    restartButton.addEventListener(
+        "click",
+        restartLevel
+    );
+
+    resetButton.addEventListener(
+        "click",
+        resetGame
+    );
+
+
+    // ============================================================
+    // START GAME
+    // ============================================================
+
+    initializeLevel();
+
+</script>
+
+</body>
+</html>
